@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TouchGuide</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+
+  <!-- ── Header ──────────────────────────────────────────────────────────── -->
+  <header>
+    <div class="logo">
+      <span class="logo-icon">👆</span>
+      <div>
+        <div class="logo-name">TouchGuide</div>
+        <div class="logo-sub">Web Element Assistant</div>
+      </div>
+    </div>
+  </header>
+
+  <!-- ── Main toggle ─────────────────────────────────────────────────────── -->
+  <section class="card toggle-card" id="mainToggleCard">
+    <div class="toggle-row">
+      <div>
+        <div class="toggle-label">Enable Guidance</div>
+        <div class="toggle-desc">Click any element to learn about it</div>
+      </div>
+      <label class="switch" aria-label="Enable guidance mode">
+        <input type="checkbox" id="guidanceToggle">
+        <span class="slider"></span>
+      </label>
+    </div>
+    <div class="status-pill" id="statusPill">
+      <span id="statusDot" class="dot dot-off"></span>
+      <span id="statusText">Guidance is off</span>
+    </div>
+  </section>
+
+  <!-- ── Options ─────────────────────────────────────────────────────────── -->
+  <section class="card options-card">
+    <div class="toggle-row mini">
+      <div>
+        <div class="toggle-label small">🔊 Voice Guidance</div>
+        <div class="toggle-desc">Read guidance aloud automatically</div>
+      </div>
+      <label class="switch small" aria-label="Enable voice guidance">
+        <input type="checkbox" id="voiceToggle" checked>
+        <span class="slider"></span>
+      </label>
+    </div>
+  </section>
+
+  <!-- ── Actions ─────────────────────────────────────────────────────────── -->
+  <section class="actions">
+    <button class="btn btn-demo" id="demoBtn">
+      🎯 Show Demo
+    </button>
+    <button class="btn btn-stop" id="stopVoiceBtn">
+      🔇 Stop Voice
+    </button>
+  </section>
+
+  <!-- ── How to use ──────────────────────────────────────────────────────── -->
+  <section class="how-to">
+    <div class="how-title">How to use</div>
+    <ol class="steps">
+      <li>Toggle <strong>Enable Guidance</strong> above</li>
+      <li>Go to any webpage</li>
+      <li>Click or hover over any element</li>
+      <li>A card appears explaining it!</li>
+    </ol>
+  </section>
+
+  <!-- ── Footer ──────────────────────────────────────────────────────────── -->
+  <footer>
+    <span>TouchGuide v1.0</span>
+    <span>·</span>
+    <span>Manifest V3</span>
+  </footer>
+
+  <script src="popup.js"></script>
+</body>
+</html>

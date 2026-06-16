@@ -1,0 +1,35 @@
+/**
+ * guidance-card.css
+ *
+ * Global styles injected into every page by the content script.
+ * Kept minimal — the actual card styles live inside the Shadow DOM
+ * (in overlay.js → getCardCSS()) so they are fully isolated.
+ *
+ * This file only styles the hover-highlight outline (#tg-highlight)
+ * which IS in the main page DOM and needs this stylesheet.
+ */
+
+/* Hover highlight box — drawn around the element under the cursor */
+#tg-highlight {
+  position: fixed;
+  pointer-events: none;
+  z-index: 2147483645;
+  border: 2px solid #4F46E5;
+  border-radius: 4px;
+  background: rgba(79, 70, 229, 0.06);
+  box-sizing: border-box;
+  transition: top 0.08s ease, left 0.08s ease,
+              width 0.08s ease, height 0.08s ease;
+}
+
+/* The invisible host element for our Shadow DOM card */
+#touchguide-host {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 0;
+  height: 0;
+  overflow: visible;
+  pointer-events: none;
+  z-index: 2147483646;
+}
