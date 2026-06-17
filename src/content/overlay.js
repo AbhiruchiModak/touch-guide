@@ -1,71 +1,53 @@
 /**
  * overlay.js
  *
- * Builds and manages the floating guidance card that appears when
- * a user clicks an element.
+ * Builds and manages the floating guidance card.
+ * Uses Shadow DOM so page styles can never interfere.
  *
- * The card is injected directly into the page DOM using a Shadow DOM
- * so page styles CANNOT interfere with our card's appearance.
- *
- * ── Shadow DOM explained (beginner) ───────────────────────────────────────
- * Imagine putting your card inside a sealed glass box.
- * The page's CSS can't reach in, and your card's CSS can't leak out.
- * This means our card looks the same on EVERY website.
- * ──────────────────────────────────────────────────────────────────────────
+ * New in this version:
+ *  - updateContent(info)  — smoothly updates the card body AFTER the
+ *    contextual AI result arrives, without hiding/reshowing.
+ *  - Loading shimmer state while AI is fetching.
  */
 
 const GuidanceOverlay = (() => {
   'use strict';
 
-  // ── Private state ─────────────────────────────────────────────────────────
-  let hostEl    = null;   // the <div> we inject into the page
-  let shadowRoot = null;  // the Shadow DOM root inside hostEl
-  let cardEl    = null;   // the actual card element inside shadow
+  let hostEl         = null;
+  let shadowRoot     = null;
+  let cardEl         = null;
   let autoDismissTimer = null;
+  let _currentInfo   = null;
 
-  // ── Public API ────────────────────────────────────────────────────────────
-  return { show, hide, isInsideCard };
+  return { show, hide, isInsideCard, updateContent };
 
   // ── show(info, x, y) ──────────────────────────────────────────────────────
   function show(info, x, y) {
-    hide();  // remove previous card if any
+    hide();
+    _currentInfo = info;
 
-    // 1. Create the host element (invisible wrapper)
     hostEl = document.createElement('div');
     hostEl.id = 'touchguide-host';
     Object.assign(hostEl.style, {
-      position:  'fixed',
-      zIndex:    '2147483646',
-      top:       '0',
-      left:      '0',
-      width:     '0',
-      height:    '0',
-      overflow:  'visible',
-      pointerEvents: 'none',
+      position: 'fixed', zIndex: '2147483646',
+      top: '0', left: '0', width: '0', height: '0',
+      overflow: 'visible', pointerEvents: 'none',
     });
     document.documentElement.appendChild(hostEl);
 
-    // 2. Attach Shadow DOM (style isolation)
     shadowRoot = hostEl.attachShadow({ mode: 'open' });
 
-    // 3. Inject our CSS into the shadow root
     const style = document.createElement('style');
     style.textContent = getCardCSS();
     shadowRoot.appendChild(style);
 
-    // 4. Build the card HTML
     cardEl = buildCard(info);
     shadowRoot.appendChild(cardEl);
 
-    // 5. Position the card (smart: stay within viewport)
     positionCard(cardEl, x, y);
 
-    // 6. Animate in
-    requestAnimationFrame(() => {
-      cardEl.classList.add('tg-visible');
-    });
+    requestAnimationFrame(() => cardEl.classList.add('tg-visible'));
 
-    // 7. Wire up close / speak buttons
     shadowRoot.getElementById('tg-close').addEventListener('click', (e) => {
       e.stopPropagation();
       hide();
@@ -73,17 +55,70 @@ const GuidanceOverlay = (() => {
 
     shadowRoot.getElementById('tg-speak')?.addEventListener('click', (e) => {
       e.stopPropagation();
+      const i = _currentInfo;
       chrome.runtime.sendMessage({
         type: 'SPEAK',
-        text: `${info.name}. ${info.description}. ${info.howToUse}`,
+        text: `${i.name}. ${i.description}. ${i.howToUse}`,
       });
     });
 
-    // 8. Auto-dismiss after 7 seconds
-    autoDismissTimer = setTimeout(hide, 7000);
-
-    // 9. Enable pointer events on the card itself
+    autoDismissTimer = setTimeout(hide, 10000);
     cardEl.style.pointerEvents = 'all';
+  }
+
+  // ── updateContent(info) — called when contextual AI result arrives ─────────
+  function updateContent(info) {
+    if (!shadowRoot || !cardEl) return;
+    _currentInfo = info;
+
+    // Remove shimmer if present
+    const shimmer = shadowRoot.getElementById('tg-shimmer');
+    if (shimmer) shimmer.remove();
+
+    // Update badge
+    const badge = shadowRoot.getElementById('tg-badge');
+    if (badge) {
+      badge.className   = 'tg-badge tg-badge-context';
+      badge.textContent = '✨ Contextual';
+    }
+
+    // Update name
+    const nameEl = shadowRoot.getElementById('tg-name');
+    if (nameEl) nameEl.textContent = info.name;
+
+    // Update description with a brief fade
+    const descEl = shadowRoot.getElementById('tg-desc');
+    if (descEl) {
+      descEl.classList.add('tg-updating');
+      setTimeout(() => {
+        descEl.textContent = info.description;
+        descEl.classList.remove('tg-updating');
+      }, 150);
+    }
+
+    // Update how-to-use
+    const howEl = shadowRoot.getElementById('tg-how');
+    if (howEl) {
+      howEl.classList.add('tg-updating');
+      setTimeout(() => {
+        howEl.textContent = info.howToUse;
+        howEl.classList.remove('tg-updating');
+      }, 200);
+    }
+
+    // Update source label
+    const srcEl = shadowRoot.getElementById('tg-source');
+    if (srcEl) srcEl.textContent = '✨ Contextual AI';
+
+    // Reset progress bar so user gets the full 10s from AI result
+    clearTimeout(autoDismissTimer);
+    autoDismissTimer = setTimeout(hide, 10000);
+    const fill = shadowRoot.querySelector('.tg-progress-fill');
+    if (fill) {
+      fill.style.animation = 'none';
+      fill.offsetHeight; // force reflow
+      fill.style.animation = 'tg-countdown 10s linear forwards';
+    }
   }
 
   // ── hide() ────────────────────────────────────────────────────────────────
@@ -94,50 +129,54 @@ const GuidanceOverlay = (() => {
       cardEl.classList.add('tg-hiding');
       setTimeout(() => {
         hostEl?.remove();
-        hostEl   = null;
-        shadowRoot = null;
-        cardEl   = null;
+        hostEl = shadowRoot = cardEl = _currentInfo = null;
       }, 200);
     }
   }
 
-  // ── isInsideCard(el) ──────────────────────────────────────────────────────
-  // Returns true if the element is part of our guidance card UI
+  // ── isInsideCard ──────────────────────────────────────────────────────────
   function isInsideCard(el) {
     if (!hostEl) return false;
     return hostEl.contains(el) || el === hostEl || el?.id === 'touchguide-host';
   }
 
-  // ── buildCard(info) ───────────────────────────────────────────────────────
+  // ── buildCard ─────────────────────────────────────────────────────────────
   function buildCard(info) {
     const card = document.createElement('div');
     card.className = 'tg-card';
 
-    const confidenceBadge = info.source === 'ai'
-      ? `<span class="tg-badge tg-badge-ai">AI · ${Math.round((info.confidence || 0) * 100)}%</span>`
-      : info.source === 'demo'
-      ? `<span class="tg-badge tg-badge-demo">Demo</span>`
-      : '';
+    // Badge logic
+    let badgeHtml = '';
+    if (info.source === 'context-ai') {
+      badgeHtml = `<span class="tg-badge tg-badge-context" id="tg-badge">✨ Contextual</span>`;
+    } else if (info.source === 'ai') {
+      badgeHtml = `<span class="tg-badge tg-badge-ai" id="tg-badge">AI · ${Math.round((info.confidence || 0) * 100)}%</span>`;
+    } else if (info.source === 'demo') {
+      badgeHtml = `<span class="tg-badge tg-badge-demo" id="tg-badge">Demo</span>`;
+    } else {
+      // No API key yet — show a subtle "loading context..." shimmer badge
+      badgeHtml = `<span class="tg-badge tg-badge-loading" id="tg-badge">⏳ Loading context…</span>`;
+    }
 
     card.innerHTML = `
       <div class="tg-header">
-        <span class="tg-icon">${info.icon || '💡'}</span>
-        <span class="tg-name">${escHtml(info.name)}</span>
-        ${confidenceBadge}
+        <span class="tg-icon">${escHtml(info.icon || '💡')}</span>
+        <span class="tg-name" id="tg-name">${escHtml(info.name)}</span>
+        ${badgeHtml}
         <button class="tg-btn-icon" id="tg-close" title="Close" aria-label="Close guidance card">✕</button>
       </div>
 
       <div class="tg-body">
         <div class="tg-section">
           <div class="tg-label">WHAT IT DOES</div>
-          <div class="tg-text">${escHtml(info.description)}</div>
+          <div class="tg-text" id="tg-desc">${escHtml(info.description)}</div>
         </div>
 
         <div class="tg-divider"></div>
 
         <div class="tg-section">
           <div class="tg-label">HOW TO USE</div>
-          <div class="tg-text">${escHtml(info.howToUse)}</div>
+          <div class="tg-text" id="tg-how">${escHtml(info.howToUse)}</div>
         </div>
 
         ${info.extra ? `
@@ -152,7 +191,7 @@ const GuidanceOverlay = (() => {
         <button class="tg-btn-speak" id="tg-speak" aria-label="Read guidance aloud">
           🔊 Read Aloud
         </button>
-        <span class="tg-source">${sourceLabel(info.source)}</span>
+        <span class="tg-source" id="tg-source">${sourceLabel(info.source)}</span>
       </div>
 
       <div class="tg-progress-bar">
@@ -163,54 +202,41 @@ const GuidanceOverlay = (() => {
     return card;
   }
 
-  // ── positionCard(cardEl, x, y) ────────────────────────────────────────────
+  // ── positionCard ──────────────────────────────────────────────────────────
   function positionCard(card, x, y) {
-    const vpW = window.innerWidth;
-    const vpH = window.innerHeight;
-    const cW  = 320;   // card width (matches CSS)
-    const cH  = 260;   // approximate card height
+    const vpW = window.innerWidth, vpH = window.innerHeight;
+    const cW = 320, cH = 280, GAP = 16;
+    let left = x + GAP, top = y - cH / 2;
 
-    const GAP = 16;
-    let left = x + GAP;
-    let top  = y - cH / 2;
-
-    // Flip left if too close to right edge
     if (left + cW > vpW - GAP) left = x - cW - GAP;
-    // Keep within left boundary
-    if (left < GAP) left = GAP;
-    // Keep within vertical bounds
-    if (top < GAP)             top = GAP;
-    if (top + cH > vpH - GAP)  top = vpH - cH - GAP;
+    if (left < GAP)             left = GAP;
+    if (top  < GAP)             top  = GAP;
+    if (top + cH > vpH - GAP)  top  = vpH - cH - GAP;
 
-    Object.assign(card.style, {
-      position: 'fixed',
-      left:     `${left}px`,
-      top:      `${top}px`,
-    });
+    Object.assign(card.style, { position: 'fixed', left: `${left}px`, top: `${top}px` });
   }
 
   // ── helpers ───────────────────────────────────────────────────────────────
   function escHtml(str) {
     return String(str ?? '')
-      .replace(/&/g,'&amp;')
-      .replace(/</g,'&lt;')
-      .replace(/>/g,'&gt;')
-      .replace(/"/g,'&quot;');
+      .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+      .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
   }
 
   function sourceLabel(src) {
     const map = {
-      aria:     '♿ ARIA',
-      semantic: '🏷 HTML',
-      heuristic:'🔍 Heuristic',
-      ai:       '🤖 AI',
-      demo:     '🎯 Demo',
-      fallback: '❓ Unknown',
+      'context-ai': '✨ Contextual AI',
+      aria:        '♿ ARIA',
+      semantic:    '🏷 HTML',
+      heuristic:   '🔍 Heuristic',
+      ai:          '🤖 AI',
+      demo:        '🎯 Demo',
+      fallback:    '❓ Unknown',
     };
     return map[src] || '';
   }
 
-  // ── Card CSS (injected into Shadow DOM) ───────────────────────────────────
+  // ── CSS ───────────────────────────────────────────────────────────────────
   function getCardCSS() {
     return `
       :host { all: initial; }
@@ -231,16 +257,9 @@ const GuidanceOverlay = (() => {
         transition: opacity 0.18s ease, transform 0.18s ease;
         z-index: 2147483646;
       }
-      .tg-card.tg-visible {
-        opacity: 1;
-        transform: scale(1) translateY(0);
-      }
-      .tg-card.tg-hiding {
-        opacity: 0;
-        transform: scale(0.94) translateY(6px);
-      }
+      .tg-card.tg-visible { opacity: 1; transform: scale(1) translateY(0); }
+      .tg-card.tg-hiding  { opacity: 0; transform: scale(0.94) translateY(6px); }
 
-      /* Header */
       .tg-header {
         display: flex;
         align-items: center;
@@ -260,94 +279,72 @@ const GuidanceOverlay = (() => {
       }
       .tg-btn-icon {
         background: rgba(255,255,255,0.2);
-        border: none;
-        color: #fff;
-        width: 26px;
-        height: 26px;
+        border: none; color: #fff;
+        width: 26px; height: 26px;
         border-radius: 50%;
-        cursor: pointer;
-        font-size: 13px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        flex-shrink: 0;
-        transition: background 0.15s;
+        cursor: pointer; font-size: 13px;
+        display: flex; align-items: center; justify-content: center;
+        flex-shrink: 0; transition: background 0.15s;
       }
       .tg-btn-icon:hover { background: rgba(255,255,255,0.35); }
 
-      /* Badges */
       .tg-badge {
-        font-size: 10px;
-        font-weight: 700;
-        padding: 2px 7px;
-        border-radius: 10px;
-        flex-shrink: 0;
-        letter-spacing: 0.03em;
+        font-size: 10px; font-weight: 700;
+        padding: 2px 7px; border-radius: 10px;
+        flex-shrink: 0; letter-spacing: 0.03em;
       }
-      .tg-badge-ai   { background: rgba(255,255,255,0.25); color: #fff; }
-      .tg-badge-demo { background: #FEF3C7; color: #92400E; }
+      .tg-badge-ai      { background: rgba(255,255,255,0.25); color: #fff; }
+      .tg-badge-demo    { background: #FEF3C7; color: #92400E; }
+      .tg-badge-context { background: #D1FAE5; color: #065F46; }
+      .tg-badge-loading {
+        background: rgba(255,255,255,0.15); color: rgba(255,255,255,0.8);
+        animation: tg-pulse 1.4s ease-in-out infinite;
+      }
+      @keyframes tg-pulse {
+        0%,100% { opacity: 0.6; }
+        50%      { opacity: 1;   }
+      }
 
-      /* Body */
       .tg-body { padding: 14px 16px 10px; }
       .tg-section { margin-bottom: 2px; }
       .tg-label {
-        font-size: 10px;
-        font-weight: 700;
-        letter-spacing: 0.08em;
-        color: #9CA3AF;
-        margin-bottom: 4px;
-        text-transform: uppercase;
+        font-size: 10px; font-weight: 700;
+        letter-spacing: 0.08em; color: #9CA3AF;
+        margin-bottom: 4px; text-transform: uppercase;
       }
       .tg-text  { color: #374151; font-size: 13.5px; line-height: 1.55; }
       .tg-muted { color: #6B7280; font-style: italic; }
-      .tg-divider {
-        height: 1px;
-        background: #F3F4F6;
-        margin: 10px 0;
+
+      /* Fade transition when AI updates text */
+      .tg-updating {
+        transition: opacity 0.15s ease;
+        opacity: 0.3;
       }
 
-      /* Footer */
+      .tg-divider { height: 1px; background: #F3F4F6; margin: 10px 0; }
+
       .tg-footer {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
+        display: flex; align-items: center; justify-content: space-between;
         padding: 10px 16px 12px;
-        background: #F9FAFB;
-        border-top: 1px solid #F3F4F6;
+        background: #F9FAFB; border-top: 1px solid #F3F4F6;
       }
       .tg-btn-speak {
-        background: #EEF2FF;
-        border: none;
-        color: #4F46E5;
-        font-size: 12px;
-        font-weight: 600;
-        padding: 6px 14px;
-        border-radius: 20px;
-        cursor: pointer;
-        transition: background 0.15s;
+        background: #EEF2FF; border: none; color: #4F46E5;
+        font-size: 12px; font-weight: 600;
+        padding: 6px 14px; border-radius: 20px;
+        cursor: pointer; transition: background 0.15s;
       }
       .tg-btn-speak:hover { background: #E0E7FF; }
-      .tg-source {
-        font-size: 11px;
-        color: #9CA3AF;
-        font-style: italic;
-      }
+      .tg-source { font-size: 11px; color: #9CA3AF; font-style: italic; }
 
-      /* Progress bar (auto-dismiss countdown) */
-      .tg-progress-bar {
-        height: 3px;
-        background: #E5E7EB;
-      }
+      .tg-progress-bar  { height: 3px; background: #E5E7EB; }
       .tg-progress-fill {
         height: 100%;
         background: linear-gradient(90deg, #4F46E5, #6D28D9);
         width: 100%;
-        animation: tg-countdown 7s linear forwards;
+        animation: tg-countdown 10s linear forwards;
       }
-      @keyframes tg-countdown {
-        from { width: 100%; }
-        to   { width: 0%; }
-      }
+      @keyframes tg-countdown { from { width: 100%; } to { width: 0%; } }
     `;
   }
 

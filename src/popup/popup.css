@@ -166,3 +166,76 @@ footer {
   font-size: 11px;
   color: #D1D5DB;
 }
+
+/* ── API Key Section ────────────────────────────────────────────────────── */
+.api-card { padding: 12px 14px 10px; }
+
+.api-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.api-icon { font-size: 18px; flex-shrink: 0; }
+
+.api-status-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  margin-left: auto;
+  flex-shrink: 0;
+  transition: background 0.2s;
+}
+.api-dot-on  { background: #10B981; box-shadow: 0 0 0 2px rgba(16,185,129,0.25); }
+.api-dot-off { background: #9CA3AF; }
+
+.api-input-row {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.api-input-row input {
+  flex: 1;
+  padding: 7px 10px;
+  border: 1.5px solid #E5E7EB;
+  border-radius: 8px;
+  font-size: 12px;
+  font-family: monospace;
+  color: #374151;
+  background: #F9FAFB;
+  outline: none;
+  min-width: 0;
+  transition: border-color 0.15s;
+}
+.api-input-row input:focus {
+  border-color: #4F46E5;
+  background: #fff;
+}
+
+.btn-save {
+  padding: 7px 12px;
+  background: #4F46E5;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s;
+  flex-shrink: 0;
+}
+.btn-save:hover    { background: #4338CA; }
+.btn-save:disabled { background: #9CA3AF; cursor: default; }
+
+.api-hint {
+  font-size: 11px;
+  color: #6B7280;
+  line-height: 1.4;
+  transition: color 0.2s;
+}
+.api-hint a {
+  color: #4F46E5;
+  text-decoration: none;
+}
+.api-hint a:hover { text-decoration: underline; }

@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "TouchGuide — Web Element Assistant",
-  "version": "1.0.0",
-  "description": "Click any element on any webpage to instantly learn what it does and how to use it. Powered by AI guidance and voice narration.",
+  "version": "2.0.0",
+  "description": "Click any element to get a contextual, site-specific explanation of what it does. Powered by Claude AI.",
 
   "permissions": [
     "activeTab",
@@ -24,6 +24,8 @@
       "js": [
         "src/utils/element-info.js",
         "src/ai/icon-recognizer.js",
+        "src/ai/context-analyzer.js",
+        "src/ai/context-ai.js",
         "src/content/overlay.js",
         "src/content/content-script.js"
       ],

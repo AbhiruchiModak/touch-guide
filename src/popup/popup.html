@@ -51,6 +51,32 @@
     </div>
   </section>
 
+  <!-- ── Claude API Key ──────────────────────────────────────────────────── -->
+  <section class="card api-card">
+    <div class="api-header">
+      <span class="api-icon">✨</span>
+      <div>
+        <div class="toggle-label small">Contextual AI</div>
+        <div class="toggle-desc">Get site-specific explanations</div>
+      </div>
+      <span class="api-status-dot" id="apiStatusDot"></span>
+    </div>
+    <div class="api-input-row">
+      <input
+        type="password"
+        id="apiKeyInput"
+        placeholder="sk-ant-… (Claude API key)"
+        autocomplete="off"
+        spellcheck="false"
+      />
+      <button id="apiKeySave" class="btn-save" aria-label="Save API key">Save</button>
+    </div>
+    <div class="api-hint" id="apiHint">
+      <a href="https://console.anthropic.com/keys" target="_blank">Get a free API key ↗</a>
+      — without it, generic descriptions are shown.
+    </div>
+  </section>
+
   <!-- ── Actions ─────────────────────────────────────────────────────────── -->
   <section class="actions">
     <button class="btn btn-demo" id="demoBtn">
@@ -65,18 +91,18 @@
   <section class="how-to">
     <div class="how-title">How to use</div>
     <ol class="steps">
-      <li>Toggle <strong>Enable Guidance</strong> above</li>
+      <li>Add your Claude API key above for context-aware AI</li>
+      <li>Toggle <strong>Enable Guidance</strong></li>
       <li>Go to any webpage</li>
-      <li>Click or hover over any element</li>
-      <li>A card appears explaining it!</li>
+      <li>Click any element — get a specific explanation!</li>
     </ol>
   </section>
 
   <!-- ── Footer ──────────────────────────────────────────────────────────── -->
   <footer>
-    <span>TouchGuide v1.0</span>
+    <span>TouchGuide v2.0</span>
     <span>·</span>
-    <span>Manifest V3</span>
+    <span>Powered by Claude</span>
   </footer>
 
   <script src="popup.js"></script>
