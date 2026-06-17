@@ -54,9 +54,11 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
             'Content-Type':         'application/json',
             'x-api-key':            msg.apiKey,
             'anthropic-version':    '2023-06-01',
+            'anthropic-beta': 'messages-2025-02-19',
           },
           body: JSON.stringify({
-            model:      'claude-haiku-4-5-20251001',  // fast + cheap for inline UI
+            model:        'claude-3-5-haiku-20241022',
+            //model:      'claude-haiku-4-5-20251001',  // fast + cheap for inline UI
             max_tokens: 300,
             messages: [{ role: 'user', content: msg.prompt }],
           }),
